@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Galileo recorder</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css"
+    />
+    <link rel="stylesheet" href="index.css" />
+    <script defer src="render.js"></script>
+  </head>
+  <body class="content">
+    <h1></h1>
+    <ul>
+      <input  id="LQbtn" type="radio" name="quality" checked >LQ</input>
+      <input  id="HQbtn" type="radio" name="quality">HQ</input>
+    </ul>
+
+    <button id="startBtn" class="button is-primary">Начать запись</button>
+    <button id="stopBtn" class="button is-warning">Сохранить</button>
+
+    <hr />
+
+    <button id="videoSelectBtn" class="button is-text">
+      Выберите источник видео
+    </button>
+    <video id="video-content"></video>
+  </body>
+</html>

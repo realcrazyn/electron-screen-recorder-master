@@ -1,0 +1,158 @@
+const { desktopCapturer, remote } = require('electron')
+
+const { writeFile } = require('fs')
+
+const { dialog, Menu } = remote
+
+// Global state
+let mediaRecorder // MediaRecorder instance to capture footage
+let recordedChunks = []
+
+// Buttons
+const videoElement = document.querySelector('video')
+
+const startBtn = document.getElementById('startBtn')
+startBtn.onclick = (e) => {
+  mediaRecorder.start()
+  startBtn.classList.add('is-danger')
+  startBtn.innerText = 'Запись'
+}
+
+const stopBtn = document.getElementById('stopBtn')
+
+stopBtn.onclick = (e) => {
+  mediaRecorder.stop()
+  startBtn.classList.remove('is-danger')
+  startBtn.innerText = 'Начать запись'
+}
+
+const videoSelectBtn = document.getElementById('videoSelectBtn')
+videoSelectBtn.onclick = getVideoSources
+
+////////////
+
+let qulity = {
+  minWidth: 640,
+  minHeight: 480,
+  maxFrameRate: 30,
+}
+
+const HQbtn = document.getElementById('HQbtn')
+const LQbtn = document.getElementById('LQbtn')
+
+HQbtn.onclick = (e) => changeQuality('high')
+LQbtn.onclick = (e) => changeQuality('low')
+
+function changeQuality(type) {
+  if (type === 'high') {
+    qulity = {
+      ...qulity,
+      minWidth: 1280,
+      minHeight: 720,
+      maxFrameRate: 60,
+    }
+    console.log(qulity, 'high')
+  } else if (type === 'low') {
+    qulity = {
+      ...qulity,
+      minWidth: 640,
+      minHeight: 480,
+      maxFrameRate: 30,
+    }
+    console.log(qulity, 'low')
+  }
+}
+////////////
+
+// Get the available video sources
+async function getVideoSources() {
+  const inputSources = await desktopCapturer.getSources({
+    types: ['window', 'screen', 'audio'],
+  })
+
+  const videoOptionsMenu = Menu.buildFromTemplate(
+    inputSources.map((source) => {
+      return {
+        label: source.name,
+        click: () => selectSource(source),
+      }
+    })
+  )
+
+  videoOptionsMenu.popup()
+}
+
+// Change the videoSource window to record
+async function selectSource(source) {
+  videoSelectBtn.innerText = source.name
+
+  const constraints = {
+    audio: {
+      mandatory: {
+        chromeMediaSource: 'desktop',
+        chromeMediaSourceId: source.id,
+      },
+    },
+    video: {
+      mandatory: {
+        chromeMediaSource: 'desktop',
+        chromeMediaSourceId: source.id,
+        // minWidth: 640,
+        // maxWidth: 1280,
+        // maxWidth: 640,
+        // minHeight: 480,
+        // maxHeight: 720,
+        // maxHeight: 480,
+        // maxFrameRate: 30,
+        // maxFrameRate: 60,
+        minWidth: qulity.minWidth,
+        maxWidth: qulity.minWidth,
+        minHeight: qulity.minHeight,
+        maxHeight: qulity.minHeight,
+        maxFrameRate: qulity.maxFrameRate,
+      },
+    },
+  }
+
+  // Create a Stream
+  const stream = await navigator.mediaDevices.getUserMedia(constraints)
+
+  // Preview the source in a video element
+  videoElement.srcObject = stream
+  videoElement.play()
+
+  // Create the Media Recorder
+  const options = { mimeType: 'video/webm; codecs=vp9' }
+  mediaRecorder = new MediaRecorder(stream, options)
+
+  // Register Event Handlers
+  mediaRecorder.ondataavailable = handleDataAvailable
+  mediaRecorder.onstop = handleStop
+
+  // Updates the UI
+}
+
+// Captures all recorded chunks
+function handleDataAvailable(e) {
+  console.log('video data available')
+  recordedChunks.push(e.data)
+}
+
+// Saves the video file on stop
+async function handleStop(e) {
+  const blob = new Blob(recordedChunks, {
+    type: 'video/webm; codecs=vp9',
+  })
+
+  const buffer = Buffer.from(await blob.arrayBuffer())
+
+  const { filePath } = await dialog.showSaveDialog({
+    buttonLabel: 'Save video',
+    defaultPath: `vid-${Date.now()}.webm`,
+  })
+
+  if (filePath) {
+    writeFile(filePath, buffer, () => console.log('video saved successfully!'))
+    recordedChunks = []
+  }
+}
